@@ -1,12 +1,6 @@
 # Dependencies
 node_modules
 
-# .env
-.env
-
 # Build
 build
 dist
-
-# Database
-prisma/*.db
