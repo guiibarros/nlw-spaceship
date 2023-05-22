@@ -4,8 +4,15 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 
 export async function memoriesRoutes(app: FastifyInstance) {
-  app.get('/', async () => {
+  app.addHook('preHandler', async (request) => {
+    await request.jwtVerify()
+  })
+
+  app.get('/', async (request) => {
     const memories = await prisma.memory.findMany({
+      where: {
+        userId: request.user.sub,
+      },
       orderBy: {
         createdAt: 'asc',
       },
@@ -26,7 +33,7 @@ export async function memoriesRoutes(app: FastifyInstance) {
     }
   })
 
-  app.get('/:id', async (request) => {
+  app.get('/:id', async (request, reply) => {
     const paramsSchema = z.object({
       id: z.string().uuid(),
     })
@@ -38,6 +45,10 @@ export async function memoriesRoutes(app: FastifyInstance) {
         id,
       },
     })
+
+    if (!memory.isPublic && memory.userId !== request.user.sub) {
+      return reply.code(401).send()
+    }
 
     return {
       memory,
@@ -58,7 +69,7 @@ export async function memoriesRoutes(app: FastifyInstance) {
         content,
         coverUrl,
         isPublic,
-        userId: '69cfee7c-7e52-4ef8-bd49-58eafc8f5fc6',
+        userId: request.user.sub,
       },
     })
 
@@ -81,7 +92,17 @@ export async function memoriesRoutes(app: FastifyInstance) {
     const { content, coverUrl, isPublic } = bodySchema.parse(request.body)
     const { id } = paramsSchema.parse(request.params)
 
-    const memory = await prisma.memory.update({
+    let memory = await prisma.memory.findUniqueOrThrow({
+      where: {
+        id,
+      },
+    })
+
+    if (memory.userId !== request.user.sub) {
+      return reply.code(401).send()
+    }
+
+    memory = await prisma.memory.update({
       data: {
         content,
         coverUrl,
@@ -103,6 +124,16 @@ export async function memoriesRoutes(app: FastifyInstance) {
     })
 
     const { id } = paramsSchema.parse(request.params)
+
+    const memory = await prisma.memory.findUniqueOrThrow({
+      where: {
+        id,
+      },
+    })
+
+    if (memory.userId !== request.user.sub) {
+      return reply.code(401).send()
+    }
 
     await prisma.memory.delete({
       where: {
