@@ -10,3 +10,7 @@ dist
 
 # Database
 prisma/*.db
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
